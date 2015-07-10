@@ -17,7 +17,7 @@ program AIOPortables;
 
 Const
 {*Local Version*}
-  Local_Version := 1.3;
+  Local_Version := 1.4;
 
 {*These constants contain the information related to the portables
   Only Modify these if the script stops working and you know what you're doing*}
