@@ -478,7 +478,7 @@ begin
       repeat
         inc(portaTry);                                 //Increase the number of tries
         sDebug('Attempt to open production screen number ' + intToStr(portaTry));
-        //mouseOffClient(OFF_CLIENT_RANDOM);             //Moves the mouse off the screen
+        mouseOffClient(OFF_CLIENT_RANDOM);             //Moves the mouse off the screen
         portableDirection();                              //Tries to click the Portable again. If no Portable found, It will either look for it or terminate
         if productionScreen.isOpen(gaussRangeInt(2000,4000)) then
           break;
@@ -643,7 +643,7 @@ begin
 
   WhichPortable();
   loginProcedure();
-  //mainscreen.setZoom(false);
+  mainscreen.setZoom(false);
   resetBreakTimer();
   writeLn('We are using ' + PortaType.Name + 's');
 
