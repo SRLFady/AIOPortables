@@ -1,4 +1,4 @@
-program AIOPortables;
+program FadyAIOPortables;
 {$DEFINE SMART}
 {$I SRL-6/SRL.Simba}
 {$i SRL-6/LIB/MISC/SRLPLAYERFORM.simba}
@@ -16,11 +16,19 @@ program AIOPortables;
 
 
 Const
-{*Local Version*}
-  Local_Version := 1.4;
+  Local_Version := 2.0;
+
+{* These constants contain information which you should edit if you
+   wish to use a bank at an unsupported location. Default is Lumbridge Beach *}
+
+{*Custom Bank data*}
+  CustomBankCol := 5000830;
+  CustomBankTol := 5;
+  CustomBankHue := 0.14;
+  CustomBankSat := 0.26;
 
 {*These constants contain the information related to the portables
-  Only Modify these if the script stops working and you know what you're doing*}
+  Only modify these if the script stops working and you know what you're doing*}
 
 {*Portable Forge data*}
   ForgeCol := 1143010;
@@ -62,20 +70,51 @@ Const
   MillEastBox := intToBox(375,180,400,215);
   MillWestBox := intToBox(177,157,199,192);
 
+{*Portable Crafter data*}
+  CrafterCol := 7691670;
+  CrafterTol := 14;
+  CrafterHue := 0.47;
+  CrafterSat := 0.65;
+  CrafterNorthBox := intToBox(260, 10, 310, 54);
+  CrafterSouthBox := intToBox(240, 250, 306, 295);
+  CrafterEastBox := intToBox(382, 139, 428, 191);
+  CrafterWestBox := intToBox(144, 110, 187, 140);
+
+{*Portable Fletcher data*}
+  FletcherCol := 5659982;
+  FletcherTol := 17;
+  FletcherHue := 1.05;
+  FletcherSat := 0.38;
+  FletcherNorthBox := intToBox(260, 10, 310, 54);
+  FletcherSouthBox := intToBox(240, 250, 306, 295);
+  FletcherEastBox := intToBox(382, 139, 428, 191);
+  FletcherWestBox := intToBox(144, 110, 187, 140);
+
+{*Portable Brazier data*}
+  BrazierCol := 1659559;
+  BrazierTol := 10;
+  BrazierHue := 0.23;
+  BrazierSat := 2.10;
+  BrazierNorthBox := intToBox(282,102,310,125);
+  BrazierSouthBox := intToBox(257,272,290,301);
+  BrazierEastBox := intToBox(375,180,400,215);
+  BrazierWestBox := intToBox(177,157,199,192);
+
 Type TPortableType = record
   Name : String;
   Color, Tol, Skill: Integer;
   ColSettings: TColorSettings;
-  OverText: TStringArray;
+  OverText,OptionText: TStringArray;
   NorthBox,SouthBox,EastBox,WestBox: TBox;
 end;
 
 var
-  IngsDone, b, BreakTime, millFail: integer;
-  priBox, secBox: TBox;
-  pBoxes : array [1..4] of TBox;
-  outOfPortables: Boolean;
-  Forge, Well, Range, Mill, PortaType: TPortableType;
+  IngsDone, B, BreakTime, MillFail: integer;
+  PriBox, SecBox: TBox;
+  PBoxes : array [1..4] of TBox;
+  OutOfPortables: Boolean;
+  ScriptTimer: TTimeMarker;
+  Bank,PortaType: TPortableType;
 
 procedure initPlayerForm();
 begin
@@ -91,7 +130,7 @@ begin
     'Amount of time in minutes till a break is called',
     'How long you want your breaks to be, also in minutes',
     'How many Ingredients do you want to process?',
-    'Number of Ingredients used per Inventory',
+    'Number of Ingredients used per Inventory (Ignore if using braziers)',
     'The longer the progress screen is open, the larger this number should be'];
 
     checkBoxLabels := ['Disable SRL Debug?', 'Disable Script Debug?'];
@@ -102,13 +141,13 @@ begin
 
     comboBoxLabels := ['Portable Direction','Bank Location','Preset','Mode','Hosting Mode','Actionbar Button'];
     comboBoxDefaults := ['Auto Detect','CA','BANK_BUTTON_PRESET_1','Smith','Not Hosting','1'];
-    comboBoxItems := [['North','East','South','West','Auto Detect'], ['North','East','South','West','SP','Burth','CA','BA'], ['BANK_BUTTON_PRESET_1','BANK_BUTTON_PRESET_2'], ['Smith','Smelt','Well','Range','Mill'], ['Primary','Secondary','Not Hosting'], ['1','2','3','4','5','6','7','8','9','0','-','=']];
+    comboBoxItems := [['North','East','South','West','Auto Detect'], ['North','East','South','West','SP','Burth','CA','BA','Custom'], ['BANK_BUTTON_PRESET_1','BANK_BUTTON_PRESET_2'], ['Smith','Smelt','Well','Range','Mill','Craft','Clay/Fire','Clay/Form','Gems','Tan','Fletch','String','Ammo','Burn','Cremate'], ['Primary','Secondary','Not Hosting'], ['1','2','3','4','5','6','7','8','9','0','-','=']];
     comboBoxHints := [
-    'The direction the Portable is at',
+    'The direction the Portable is at initally',
     'Pick a bank or the direction of the bank.',
     'Pick a bank preset to use',
-    'Which mode are we using?',
-    'Do you want to place a Portable if non are found?',
+    'Which portable/mode are we using?',
+    'Which Hosting mode are we using',
     'Where on the Actionbar is the Portable placed?'];
 
   end;
@@ -139,13 +178,13 @@ begin
       strings[2] := playerForm.players[i].settings[10];
       strings[3] := playerform.players[i].settings[11];
       strings[4] := playerform.players[i].settings[12];
-      strings[5] := Playerform.players[i].settings[13];
+      strings[5] := playerform.players[i].settings[13];
 
       world := integers[0];
     end;
 end;
 
-procedure TPortableType.init(_Name: String; _Color, _Tol, _Skill: Integer; _ColSettings: TColorSettings; _OverText: TStringArray; _NorthBox, _SouthBox, _EastBox, _WestBox: TBox);
+procedure TPortableType.init(_Name: String; _Color, _Tol, _Skill: Integer; _ColSettings: TColorSettings; _OverText, _OptionText: TStringArray; _NorthBox, _SouthBox, _EastBox, _WestBox: TBox);
 begin
   Self.Name := _Name;
   Self.Color := _Color;
@@ -153,18 +192,11 @@ begin
   Self.Skill := _Skill;
   Self.ColSettings := _ColSettings;
   Self.OverText := _OverText;
+  Self.OptionText := _OptionText;
   Self.NorthBox := _NorthBox;
   Self.SouthBox := _SouthBox;
   Self.EastBox := _EastBox;
   Self.WestBox := _WestBox;
-end;
-
-procedure LoadPortables();
-begin
-  Forge.init('Portable Forge',ForgeCol,ForgeTol,SKILL_SMITHING,colorSetting(2,ForgeHue,ForgeSat),['mith Portable','able forge'],ForgeNorthBox,ForgeSouthBox,ForgeEastBox,ForgeWestBox);
-  Well.init('Portable Well',WellCol,WellTol,SKILL_HERBLORE,colorSetting(2,WellHue,WellSat),['ix potions', 'ions Portable','able well'],WellNorthBox,WellSouthBox,WellEastBox,WellWestBox);
-  Range.init('Portable Range',RangeCol,RangeTol,SKILL_COOKING,colorSetting(2,RangeHue,RangeSat),['ook Portable','able range'],RangeNorthBox,RangeSouthBox,RangeEastBox,RangeWestBox);
-  Mill.init('Portable Sawmill',MillCol,MillTol,30,colorSetting(2,MillHue,MillSat),['ake planks', 'anks Portable','able sawmill'],MillNorthBox,MillSouthBox,MillEastBox,MillWestBox);
 end;
 
 procedure sDebug(Text: string);
@@ -173,15 +205,26 @@ begin
     writeLn(Text);
 end;
 
-procedure whichPortable();
+procedure loadEverything();
 begin
+  Bank.init('Custom Bank',CustomBankCol,CustomBankTol,30,colorSetting(2,CustomBankHue,CustomBankSat),['hest','anker','ank','booth'],[],MillNorthBox,MillSouthBox,MillEastBox,MillWestBox);
   case players[currentPlayer].strings[3] of
-    'Smith': PortaType := Forge;
-    'Smelt': PortaType := Forge;
-    'Well' : PortaType := Well;
-    'Range': PortaType := Range;
-    'Mill' : PortaType := Mill;
+    'Smith','Smelt': PortaType.init('Portable Forge',ForgeCol,ForgeTol,SKILL_SMITHING,colorSetting(2,ForgeHue,ForgeSat),['mith Portable','able forge'],['melt','melt Portable'],ForgeNorthBox,ForgeSouthBox,ForgeEastBox,ForgeWestBox);
+    'Well': PortaType.init('Portable Well',WellCol,WellTol,SKILL_HERBLORE,colorSetting(2,WellHue,WellSat),['ix potions', 'ions Portable','able well'],[],WellNorthBox,WellSouthBox,WellEastBox,WellWestBox);
+    'Range': PortaType.init('Portable Range',RangeCol,RangeTol,SKILL_COOKING,colorSetting(2,RangeHue,RangeSat),['ook Portable','able range'],[],RangeNorthBox,RangeSouthBox,RangeEastBox,RangeWestBox);
+    'Mill': PortaType.init('Portable Sawmill',MillCol,MillTol,30,colorSetting(2,MillHue,MillSat),['ake planks', 'anks Portable','able sawmill'],[],MillNorthBox,MillSouthBox,MillEastBox,MillWestBox);
+    'Tan': PortaType.init('Portable Crafter',CrafterCol,CrafterTol,30,colorSetting(2,CrafterHue,CrafterSat),['raft Portable','ortable crafter'],['an Leather','ther Portable'],CrafterNorthBox,CrafterSouthBox,CrafterEastBox,CrafterWestBox);
+    'Craft','Clay/Fire','Clay/Form' : PortaType.init('Portable Crafter',CrafterCol,CrafterTol,SKILL_CRAFTING,colorSetting(2,CrafterHue,CrafterSat),['raft Portable','ortable crafter'],['lay Crafting','rafting Portable'],CrafterNorthBox,CrafterSouthBox,CrafterEastBox,CrafterWestBox);
+    'Gems': PortaType.init('Portable Crafter',CrafterCol,CrafterTol,SKILL_CRAFTING,colorSetting(2,CrafterHue,CrafterSat),['raft Portable','ortable crafter'],['ut Gems','ems Portable'],CrafterNorthBox,CrafterSouthBox,CrafterEastBox,CrafterWestBox);
+    'Fletch','String' : PortaType.init('Portable Fletcher',FletcherCol,FletcherTol,SKILL_FLETCHING,colorSetting(2,FletcherHue,FletcherSat),['letch Portable','ortable fletcher'],['String','tring Portable'],FletcherNorthBox,FletcherSouthBox,FletcherEastBox,FletcherWestBox);
+    'Ammo': PortaType.init('Portable Fletcher',FletcherCol,FletcherTol,SKILL_FLETCHING,colorSetting(2,FletcherHue,FletcherSat),['letch Portable','ortable fletcher'],['Ammo','mmo Portable'],FletcherNorthBox,FletcherSouthBox,FletcherEastBox,FletcherWestBox);
+    'Burn': PortaType.init('Portable Brazier',BrazierCol,BrazierTol,SKILL_FIREMAKING,colorSetting(2,BrazierHue,BrazierSat),['dd logs','ogs Portable'],['dd logs','ogs Portable'],BrazierNorthBox,BrazierSouthBox,BrazierEastBox,BrazierWestBox);
+    'Cremate': PortaType.init('Portable Brazier',BrazierCol,BrazierTol,SKILL_PRAYER,colorSetting(2,BrazierHue,BrazierSat),['dd ogs','ogs Portable'],['dd ones','ones Portable'],BrazierNorthBox,BrazierSouthBox,BrazierEastBox,BrazierWestBox);
   end;
+  PBoxes[1].setBounds(231, 1, 344, 145);
+  PBoxes[2].setBounds(231, 146, 344, 325);
+  PBoxes[3].setBounds(345, 60, 458, 250);
+  PBoxes[4].setBounds(105, 60, 230, 250);
 end;
 
 procedure resetBreakTimer();                //Adapted from The Mayor's VEB Miner
@@ -192,7 +235,7 @@ begin
   BreakTime := (getSystemTime() + (players[currentPlayer].integers[1] * 60000) + randomRange(-ran, ran));
 end;
 
-procedure LoginProcedure();
+procedure loginProcedure();
 begin
   if not isLoggedin() then
   begin
@@ -205,34 +248,32 @@ begin
   mainscreen.setAngle(MS_ANGLE_HIGH);
 end;
 
-procedure loadBoxes();
+procedure TPortableType.Click();      //Either Left or Right clicks the Portable, depending on the mode selected
 begin
-  pBoxes[1].setBounds(235, 20, 338, 145);
-  pBoxes[2].setBounds(235, 210, 338, 325);
-  pBoxes[3].setBounds(345, 95, 458, 250);
-  pBoxes[4].setBounds(105, 95, 230, 250);
+  if not (Self.Name = 'Custom Bank') then
+    case players[currentPlayer].strings[3] of
+      'Smelt','Tan','Clay/Fire','Clay/Form','Gems','String','Ammo','Cremate':
+      begin
+        fastclick(mouse_right);
+        wait(gaussRangeInt(100, 300));
+        chooseOption.select(PortaType.OptionText, 400);
+      end;
+      'Mill','Smith','Range','Well','Craft','Fletch','Burn':
+        fastClick(mouse_left);
+    end
+  else
+    fastClick(Mouse_Left);
 end;
 
-procedure LeftOrRight();      //Either Left or Right clicks the Portable, depending on the mode selected
+function TPortableType.IsItHere(click:Boolean): Boolean;
 begin
-  if players[currentPlayer].strings[3] = 'Smelt' then
+  if IsMouseOverText(Self.OverText, 500) then
   begin
-    fastclick(mouse_right);
-    wait(gaussRangeInt(100, 300));
-    chooseOption.select(['melt','lt Portable', 'Smelt'], 400);
-  end else
-    fastclick(mouse_left);
-end;
-
-function IsItHere(click:Boolean): Boolean;
-begin
-  if IsMouseOverText(PortaType.OverText, 500) then
-  begin
-    sDebug('A ' +PortaType.Name+ ' is here. Click is: ' +toStr(Click));
-    if click then leftOrRight();
+    sDebug('A ' +Self.Name+ ' is here. Click is: ' +toStr(Click));
+    if click then Self.Click();
     result:= True;
   end else
-    sDebug('A ' +PortaType.Name+ ' is not here. Click is: ' +toStr(Click));
+    sDebug('A ' +Self.Name+ ' is not here. Click is: ' +toStr(Click));
 end;
 
 function portableFind(): boolean;
@@ -243,55 +284,116 @@ begin                   //Finds the Portable and assigns the TPoint MPos to the 
   if IsMouseOverText(PortaType.OverText) then
     exit(True);
 
-  if not mainscreen.findObject(MPos.x, Mpos.y, PortaType.Color, PortaType.Tol, PortaType.ColSettings, mainscreen.playerPoint, 20, 20, 50, PortaType.OverText, MOUSE_Move) then
+  if not mainscreen.findObject(MPos.x, Mpos.y, PortaType.Color, PortaType.Tol, PortaType.ColSettings, mainscreen.playerPoint, 80, 80, 110, PortaType.OverText, MOUSE_Move) then
   begin
     sDebug('No ' + PortaType.Name + ' Found');
     exit(false);
   end;
 
-  for i := 1 to high(pBoxes) do            //Checks which Direction MPos is at
-    if pBoxes[i].isPointInside(MPos) then
+  for i := 1 to high(PBoxes) do            //Checks which Direction MPos is at
+    if PBoxes[i].isPointInside(MPos) then
     begin
       r := i;
       break();
     end;
 
   case r of                          // Assigns Search boxes and secondary click boxes depending on the mouse direction
-    0 : begin sDebug('The' + PortaType.Name + 'is somewhere different'); end;
-    1 : begin priBox := pBoxes[1]; secBox := PortaType.NorthBox; sDebug('The ' + PortaType.Name + ' is North'); end;
-    2 : begin priBox := pBoxes[2]; secBox := PortaType.SouthBox; sDebug('The ' + PortaType.Name + ' is South'); end;
-    3 : begin priBox := pBoxes[3]; secBox := PortaType.EastBox; sDebug('The ' + PortaType.Name + ' is East'); end;
-    4 : begin priBox := pBoxes[4]; secBox := PortaType.WestBox; sDebug('The ' + PortaType.Name + ' is West'); end;
+    0: sDebug('The' + PortaType.Name + 'is somewhere different');
+    1:
+    begin
+      PriBox := PBoxes[1];
+      SecBox := PortaType.NorthBox;
+      sDebug('The ' + PortaType.Name + ' is North');
+    end;
+    2:
+    begin
+      PriBox := PBoxes[2];
+      SecBox := PortaType.SouthBox;
+      sDebug('The ' + PortaType.Name + ' is South');
+    end;
+    3:
+    begin
+      PriBox := PBoxes[3];
+      SecBox := PortaType.EastBox;
+      sDebug('The ' + PortaType.Name + ' is East');
+    end;
+    4:
+    begin
+      PriBox := PBoxes[4];
+      SecBox := PortaType.WestBox;
+      sDebug('The ' + PortaType.Name + ' is West');
+    end;
   end;
   result := True;
 end;
 
-function portableDetect(searchLoc: TBox): Boolean;
+function TPortableType.Detect(searchLoc: TBox): Boolean;
 var
   x, y, i: integer;
-  pTPA: TPointArray;
   pATPA: T2DPointArray;
+  pTPA: TPointArray;
 begin
-  if IsMouseOverText(PortaType.OverText) then
+  if IsMouseOverText(Self.OverText) then
     exit(True);
 
-  findColorsSpiralTolerance(x, y, pTPA, PortaType.Color, searchLoc, PortaType.Tol, PortaType.ColSettings);
+  findColorsSpiralTolerance(x, y, pTPA, Self.Color, searchLoc, Self.Tol, Self.ColSettings);
+  mainScreen.filterPointsPlayer(pTPA);
 
   if (Length(pTPA) < 1) then
     exit;
 
   pATPA := pTPA.toATPA(20, 20);
-  pATPA.sortFromMidPoint(searchLoc.getRandomPoint);
+  if not (Self.Name = 'Custom Bank') then
+    case players[currentPlayer].strings[3] of
+      'Smelt','Tan','Clay/Fire','Clay/Form','Gems','String','Ammo','Cremate':
+      begin
+        pATPA.sortFromMidPoint(mainScreen.playerBox.getRandomPoint);
+        invertATPA(pATPA);
+      end;
+      'Mill','Smith','Range','Well','Craft','Fletch','Burn':
+        pATPA.sortFromMidPoint(searchLoc.getRandomPoint);
+    end
+  else
+    pATPA.sortFromMidPoint(searchLoc.getRandomPoint);
+
   FilterTPAsBetween(pATPA,1,110);
 
   for i := 0 to high(pATPA) do
   begin
     mouse(pATPA[i].getBounds().getRandomPoint());
     wait(gaussRangeInt(60,130));
-    if isMouseOverText(PortaType.OverText) then
+    if isMouseOverText(Self.OverText) then
     begin
       exit(True);
     end;
+  end;
+end;
+
+procedure whichDirection();
+begin
+  case players[currentPlayer].strings[0] of
+  'North':
+  begin
+    PriBox := PBoxes[1];
+    SecBox := PortaType.NorthBox;
+  end;
+  'East':
+  begin
+    PriBox := PBoxes[3];
+    SecBox := PortaType.EastBox;
+  end;
+  'South':
+  begin
+    PriBox := PBoxes[2];
+    SecBox := PortaType.SouthBox;
+  end;
+  'West':
+  begin
+    PriBox := PBoxes[4];
+    SecBox := PortaType.WestBox;
+  end;
+  'Auto Detect':
+    portableFind();
   end;
 end;
 
@@ -301,37 +403,144 @@ begin
     exit(True);
 
   case players[currentPlayer].strings[1] of
-    'North': begin mouseOval(299, 111, 20, 20, Mouse_Move); if IsMouseOverText(['Bank', 'hest', 'nker'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := true; end; end;
-    'East': begin mouseOval(365, 184, 20, 20, Mouse_Move); if IsMouseOverText(['Bank', 'hest', 'nker'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := true; end; end;
-    'South': begin mouseOval(281, 283, 30, 30, Mouse_Move); if IsMouseOverText(['Bank', 'hest', 'nker'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := true; end; end;
-    'West': begin mouseOval(185, 180, 25, 25, Mouse_Move); if IsMouseOverText(['Bank', 'hest', 'nker'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := true; end; end;
-    'SP': begin if not bankScreen.open(BANK_CHEST_SHANTAY) then begin mouseOval(378, 197, 30, 30, Mouse_Move); if IsMouseOverText(['Shantay c', 'y chest'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := True; end; end else result := True; end;
-    'Burth': begin if not bankScreen.open(BANK_TABLE_BURTHORPE) then begin mouseOval(376, 193, 30, 30, Mouse_Move); if IsMouseOverText(['ank', 'booth'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := True; end; end else result := True; end;
-    'CA': begin if not bankScreen.open(BANK_CHEST_LUMBRIDGE) then begin mouseOval(376, 193, 30, 30, Mouse_Move); if IsMouseOverText(['ank', 'hest'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := True; end; end else result := True; end;
-    'BA': begin if not bankScreen.open(BANK_CHEST_BARB_OUTPOST) then begin mouseOval(376, 193, 30, 30, Mouse_Move); if IsMouseOverText(['ank', 'hest'], 777) then begin fastclick(mouse_left); if bankscreen.isopen(gaussRangeInt(2000,4000)) then result := True; end; end else result := True; end;
+    'North':
+    begin
+      mouseOval(299, 111, 20, 20, Mouse_Move);
+      if Bank.IsItHere(true) then
+        if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+          result := true;
+    end;
+    'East':
+    begin
+      mouseOval(365, 184, 20, 20, Mouse_Move);
+      if Bank.IsItHere(true) then
+        if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+          result := true;
+    end;
+    'South':
+    begin
+      mouseOval(281, 283, 30, 30, Mouse_Move);
+      if Bank.IsItHere(true) then
+        if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+          result := true;
+    end;
+    'West':
+    begin
+      mouseOval(185, 180, 25, 25, Mouse_Move);
+      if Bank.IsItHere(true) then
+        if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+          result := true;
+    end;
+    'SP':
+    begin
+      if not bankScreen.open(BANK_CHEST_SHANTAY) then
+      begin
+        mouseOval(378, 197, 30, 30, Mouse_Move);
+        if Bank.IsItHere(true) then
+          if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+            result := true;
+      end else
+        result := true;
+    end;
+    'Burth':
+    begin
+      if not bankScreen.open(BANK_TABLE_BURTHORPE) then
+      begin
+        mouseOval(376, 193, 30, 30, Mouse_Move);
+        if Bank.IsItHere(true) then
+          if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+            result := true;
+      end else
+        result := true;
+    end;
+    'CA':
+    begin
+      if not bankScreen.open(BANK_CHEST_LUMBRIDGE) then
+      begin
+        mouseOval(376, 193, 30, 30, Mouse_Move);
+        if Bank.IsItHere(True) then
+          if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+            result := True;
+      end else
+        result := True;
+    end;
+    'BA':
+    begin
+      if not bankScreen.open(BANK_CHEST_BARB_OUTPOST) then
+      begin
+        mouseOval(376, 193, 30, 30, Mouse_Move);
+        if Bank.IsItHere(True) then
+          if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+            result := True;
+      end else
+        result := True;
+    end;
+    'Custom':
+    begin
+      if Bank.Detect(mainScreen.getBounds) then
+        if Bank.IsItHere(True) then
+          if bankscreen.isopen(gaussRangeInt(2000,4000)) then
+            result := true;
+    end;
   end;
 end;
 
 procedure portableSpot();        //Moves the mouse to the specified location in the playerform
 begin
-  case players[currentPlayer].strings[0] of
-    'North': if not portableDetect(pBoxes[1]) then MouseBox(PortaType.NorthBox,Mouse_Move);
-    'East': if not portableDetect(pBoxes[3]) then MouseBox(PortaType.EastBox,Mouse_Move);
-    'South': if not portableDetect(pBoxes[2]) then Mousebox(PortaType.SouthBox,Mouse_Move);
-    'West': if not portableDetect(pBoxes[4]) then Mousebox(PortaType.WestBox,Mouse_Move);
-    'Auto Detect': if not portableDetect(priBox) then Mousebox(secBox,Mouse_Move);
-  end;
+  if not PortaType.Detect(PriBox) then
+    Mousebox(SecBox,Mouse_Move);
 end;
 
-procedure AntiBan(Chance: Integer; ReHover: boolean);
+procedure antiBan(Chance: Integer; ReHover: boolean);
 begin
   case random(Chance) of
-    1, 2: begin if (players[currentPlayer].strings[3] = 'Mill') then hoverRandomSkill() else hoverSkill(PortaType.Skill); if Rehover then portableSpot(); end;
-    3..22: begin pickUpMouse; if Rehover then portableSpot(); end;
-    23..28: begin sleepAndMoveMouse(randomRange(500, 3000)); if Rehover then portableSpot(); end;
-    29..36: begin wait(RandomRange(777, 5000)); if Rehover then portableSpot(); end;
-    37: begin smallRandomMouse(); if Rehover then portableSpot(); end;
-    38: begin writeLn('Starting mini break.'); wait(RandomRange(9001, 25000)); writeLn('Finished mini break.'); if Rehover then portableSpot(); end;
+    1, 2:
+    begin
+      sDebug('Doing Antiban, Rehover is: '+ toStr(ReHover));
+      if IsArrInStr(['Mill','Tan'],players[currentPlayer].strings[3])then
+        hoverRandomSkill()
+      else
+        hoverSkill(PortaType.Skill);
+      if Rehover then
+        portableSpot();
+    end;
+    3..22:
+    begin
+      sDebug('Doing Antiban, Rehover is: '+ toStr(ReHover));
+      pickUpMouse();
+      if Rehover then
+        portableSpot();
+    end;
+    23..28:
+    begin
+      sDebug('Doing Antiban, Rehover is: '+ toStr(ReHover));
+      sleepAndMoveMouse(randomRange(500, 3000));
+      if Rehover then
+        portableSpot();
+    end;
+    29..36:
+    begin
+      sDebug('Doing Antiban, Rehover is: '+ toStr(ReHover));
+      wait(RandomRange(777, 5000));
+      if Rehover then
+        portableSpot();
+    end;
+    37:
+    begin
+      sDebug('Doing Antiban, Rehover is: '+ toStr(ReHover));
+      smallRandomMouse();
+      if Rehover then
+        portableSpot();
+    end;
+    38:
+    begin
+      sDebug('Doing Antiban, Rehover is: '+ toStr(ReHover));
+      writeLn('Starting mini break.');
+      wait(RandomRange(9001, 25000));
+      writeLn('Finished mini break.');
+      if Rehover then
+        portableSpot();
+    end;
   end;
 end;
 
@@ -339,7 +548,7 @@ procedure portablePlace();
 begin
   if not isLoggedIn() then
     exit;
-  if outOfPortables then                          //Checks if the boolean has been triggerd before continuing
+  if OutOfPortables then                          //Checks if the boolean has been triggerd before continuing
   begin
     writeLn('Out of ' + PortaType.Name +'s');
     exit;
@@ -360,11 +569,11 @@ end;
 
 procedure portableDirection();          //Moves the mouse to the Portable location, if not found, will look for it, if found will click it
 var
-  Waited: Integer;
+  waited: Integer;
 begin
   if not isLoggedIn() then
     exit;
-  if (Tabbackpack.count() <= 20) then     //If the backpack doesnt have 20 or more items, the script terminates
+  if (Tabbackpack.count() < 1) then     //If the backpack doesnt have 20 or more items, the script terminates
   begin
     writeLn('Failed to withdraw enough items');
     terminateScript();
@@ -372,43 +581,66 @@ begin
 
   portableSpot();             //Moves the mouse to the pre-determined Portable location
 
-  if (players[currentPlayer].strings[4] = 'Primary') and (not IsItHere(False)) and (not portableFind()) then
+  if (players[currentPlayer].strings[4] = 'Primary') and (not PortaType.IsItHere(False)) and (not portableFind()) then
     portablePlace();
-  if not IsItHere(True) then    //If Portable isnt found
+  if not PortaType.IsItHere(True) then    //If Portable isnt found
   begin
-    sDebug('Waiting for a ' +portaType.Name);
+    sDebug('Waiting for a ' +PortaType.Name);
     repeat
       wait(gaussRangeInt(1500, 2500));                                       //Waits till it is found in this spot, or it has tried 10 times (usually takes 15-30 seconds)
       AntiBan(800, true);     //Increase the number for less antiban during the wait for the Portable
-      if IsItHere(True) then
+      if PortaType.IsItHere(True) then
         exit;
-      inc(Waited);
-    until (Waited >= 10) or productionScreen.isOpen();
-    if (Waited >= 10) then                                          //If it has tried 10 or more times, will look for the Portable again
-    begin                                                           //or terminate depending on playerform. To wait more, Increase the
-      if (players[currentPlayer].strings[0] = 'Auto Detect') then   //Number for Waited
-      begin
-        sDebug('Could not find ' +PortaType.Name + ', Looking Around');
-        portableFind();
-      end else
-        sDebug('Could not find ' + PortaType.Name);
+      inc(waited);
+    until (waited >= 10) or productionScreen.isOpen();
+    if (waited >= 10) then                                          //If it has tried 10 or more times, will look for the Portable again
+    begin                                                           //To wait more, Increase the Threshold for "Waited"
+      sDebug('Could not find ' +PortaType.Name + ', Looking Around');
+      portableFind();
     end;
   end else exit;
-  if IsItHere(true) then    //If Portable is there
+  if PortaType.IsItHere(true) then    //If Portable is there
     exit
   else
   begin
-  if (players[currentPlayer].strings[4] = 'Secondary') and (not (OutOfPortables)) then
+  if (players[currentPlayer].strings[4] = 'Secondary') and (not OutOfPortables) then
     portablePlace();
   end;
 end;
 
-procedure MillsMake();            //Procedure to make planks when using Sawmills
+procedure brazierMake();        //Procedure to use the portable braziers
+var
+  i,preCount,brazierTry: Integer;
+begin
+  if (not isLoggedIn()) or (Tabbackpack.count() < 1) then
+    exit;
+  preCount := tabBackPack.count();
+  while (brazierTry < 10) and (not tabBackPack.waitForShift(gaussRangeInt(7600,8400))) do   //Will keep trying to click the brazier if no backpack shift is detected
+  begin                                                                                     //Up to 10 times
+    sDebug('Failed to detect backpack shift, looking for portable Again');
+    inc(brazierTry);                               //Increase the brazier try variable
+    portableDirection();                           //Tries to click again
+  end;
+  if brazierTry >= 10 then                     //If still unsuccessful after 10 attempts, will terminate the script
+  begin
+    writeLn('Failed to use the brazier 10 times, Terminating');
+    terminateScript();
+  end;
+  for i := 2 to 28 do         //Will loop through the rest of the inventory slots
+    if tabBackPack.isItemInSlot(i) then          //If the slot is occupied then
+      if tabBackPack.waitForShift(gaussRangeInt(7600,8400)) then      //If a backpack shift occurs it will do some antiban
+        antiban(players[currentPlayer].integers[5],false)
+      else
+        break;                                             //If no shift then the brazier most likely ran out
+  IngsDone := IngsDone + (preCount - tabBackPack.count());
+end;
+
+procedure millsMake();            //Procedure to make planks when using Sawmills
 var
   numToMill,confirmTry: integer;
   timer: TTimeMarker;
 begin
-  if not isLoggedIn() then
+  if (not isLoggedIn()) or (Tabbackpack.count() < 1) then
     exit;
   timer.start();
   case random(250) of             //Picks the number of logs to input
@@ -439,58 +671,93 @@ begin
     while not chatbox.findTextOnLines(['protean planks','money pouch'], [0]) and (timer.getTime < 25000) do
     begin
       wait(gaussRangeInt(300,700));
-      AntiBan(players[currentPlayer].integers[5],false);
+      antiBan(players[currentPlayer].integers[5],false);
     end;
     if not (timer.getTime > 25000) then
     begin
       IngsDone := IngsDone + players[currentPlayer].integers[4];
-      millFail := 0;
+      MillFail := 0;
     end else
     begin
-      inc(millFail);
-      sDebug('Failed attempt number ' + intToStr(millFail) + ' to make planks');
+      inc(MillFail);
+      sDebug('Failed attempt number ' + intToStr(MillFail) + ' to make planks');
     end;
   end else
   begin
-    inc(millFail);
-    sDebug('Failed attempt number ' + intToStr(millFail) + ' to make planks');
+    inc(MillFail);
+    sDebug('Failed attempt number ' + intToStr(MillFail) + ' to make planks');
   end;
-  if (millFail >9) then
+  if (MillFail >9) then
   begin
     writeLn('Failed to make planks 10 times in a row. Terminating script');
     terminateScript();
   end;
 end;
 
-procedure portableMake();                //Navigates the production screen and waits at the progress screen.
-var                                            //Also initates the Sawmill's make procedure if the mode is Mill
-  portaTry: Integer;
+procedure clayNavigate();
+var
+  confirmTry: Integer;
 begin
-  if (not isLoggedIn()) or (Tabbackpack.count() <= 20) then
-    exit;
-  if (players[currentPlayer].strings[3] = 'Mill') then
-    MillsMake()
-  else begin
-    if not productionScreen.isOpen(gaussRangeInt(2000,4000)) then          //If the production screen isnt open withing 2-4 seconds
-    begin
-      inc(portaTry);
-      sDebug('Failed to open Production screen trying again');
-      repeat
-        inc(portaTry);                                 //Increase the number of tries
-        sDebug('Attempt to open production screen number ' + intToStr(portaTry));
-        mouseOffClient(OFF_CLIENT_RANDOM);             //Moves the mouse off the screen
-        portableDirection();                              //Tries to click the Portable again. If no Portable found, It will either look for it or terminate
-        if productionScreen.isOpen(gaussRangeInt(2000,4000)) then
-          break;
-      until productionScreen.isOpen() or (portaTry>19);      //If the number of tries are more than 9 it will stop trying
-      if not productionScreen.isOpen(5000) then             //If it still isnt open, will terminate
+  if conversationbox.isOpen(gaussRangeInt(2000,4000)) then
+  begin
+    sDebug('Clay Conversation box has been detected');
+    repeat
+      wait(gaussRangeInt(200,500));
+      if conversationbox.isOpen() then
       begin
-        writeLn('Failed to open production screen 20 times, Terminating');
-        terminateScript;
+        case players[currentPlayer].strings[3] of
+          'Clay/Fire': typesend('2',false);          //Chooses Option 2 in the conversationBox
+          'Clay/Form': typeSend('1',false);          //Chooses Option 1 in the conversationBox
+        end;
+        inc(confirmTry);
+        sDebug('Clay Click attempt number: ' +toStr(confirmTry));
+        wait(gaussRangeInt(200,500));
       end;
+    until (not conversationbox.isOpen()) or (confirmTry > 3);
+  end;
+end;
+
+procedure portableMake();                //Navigates the production screen and waits at the progress screen.
+var
+  portaTry, confirmTry: Integer;
+begin
+  if (not isLoggedIn()) or (Tabbackpack.count() < 1) then
+    exit;
+  if isArrInStr(['Clay/Fire','Clay/Form'], players[currentPlayer].strings[3]) then    //If making clay, navigates the conversation box that comes up
+    clayNavigate();
+  if not productionScreen.isOpen(gaussRangeInt(2000,4000)) then          //If the production screen isnt open withing 2-4 seconds
+  begin
+    inc(portaTry);
+    sDebug('Failed to open Production screen trying again');
+    repeat
+      inc(portaTry);                                 //Increase the number of tries
+      sDebug('Attempt to open production screen number ' + intToStr(portaTry));
+      mouseOffClient(OFF_CLIENT_RANDOM);             //Moves the mouse off the screen
+      portableDirection();                              //Tries to click the Portable again. If no Portable found, It will either look for it or terminate
+      if isArrInStr(['Clay/Fire','Clay/Form'], players[currentPlayer].strings[3]) then    //If making clay, navigates the conversation box that comes up
+        clayNavigate();
+      if productionScreen.isOpen(gaussRangeInt(2000,4000)) then
+        break;
+    until productionScreen.isOpen() or (portaTry>19);      //If the number of tries are more than 9 it will stop trying
+    if not productionScreen.isOpen(5000) then             //If it still isnt open, will terminate
+    begin
+      writeLn('Failed to open production screen 20 times, Terminating');
+      terminateScript;
     end;
-    wait(gaussRangeInt(150, 500));               //Waits 0.1-0.5 seconds
-    productionScreen.clickStart(true);           //Clicks the start button
+  end;
+  wait(gaussRangeInt(150, 500));               //Waits 0.1-0.5 seconds
+  productionScreen.clickStart(true);           //Clicks the start button
+  if (players[currentPlayer].strings[3] = 'Tan') then     //If tanning, will skip the progress screen
+  begin
+    antiBan(players[currentPlayer].integers[5],false);     //Does Antiban
+    wait(gaussRangeInt(100,250));          //Waits 0.1-0.25 seconds before proceeding
+    if not productionScreen.close(false) then
+    begin
+      WriteLn('Failed to close the production screen');
+      terminateScript();
+    end;
+  end else                   //If not tanning then
+  begin
     if not progressScreen.isOpen(8000) then      //if the progress screen isnt open within 8 seconds, it will terminate
     begin
       WriteLn('Failed to open Progress screen');
@@ -498,11 +765,11 @@ begin
     end;
     repeat      //Waits and does antiban untill the progress button changes to done or the progress screen isn't detected for 1-1.5 seconds
       wait(gaussRangeInt(300, 700));
-      AntiBan(players[currentPlayer].integers[5],false);
+      antiBan(players[currentPlayer].integers[5],false);
     until (progressScreen.getButton()= PROGRESS_BUTTON_DONE) or (not progressScreen.isOpen(gaussRangeInt(1000, 1500)));
-    mouseSpeed := randomRange(28,35);
-    IngsDone := IngsDone + players[currentPlayer].integers[4];
   end;
+  mouseSpeed := randomRange(28,35);
+  IngsDone := IngsDone + players[currentPlayer].integers[4];
 end;
 
 procedure CompactBanker();     //Inspired by TrollCrank's banker in ProteanPlankParade
@@ -568,8 +835,8 @@ begin
       wait(25000 + random(4000));
     until breakFor < breakDuration.getTime();
 
-    inc(b);
-    LoginProcedure();
+    inc(B);
+    loginProcedure();
     resetBreakTimer();
   end;
 end;
@@ -609,16 +876,21 @@ procedure portableMainLoop();
 begin
   if not isLoggedIn() then
     loginProcedure();
-
-  CompactBanker();
+  If not (players[currentPlayer].strings[3] = 'Ammo') then
+    CompactBanker();
   portableDirection();
-  portableMake();
+
+  case players[currentPlayer].strings[3] of
+    'Mill' : millsMake();
+    'Burn','Cremate': brazierMake();
+    else  portableMake();
+  end;
   takeBreak();
   clearDebug();
   writeln('Ingredients Processed: ' + (toStr(IngsDone)));
-  writeLn('Processed/H: ' +intToStr(round(IngsDone/(getTimeRunning/3600000))));
+  writeLn('Processed/H: ' +intToStr(round(IngsDone/(ScriptTimer.getTime()/3600000))));
   writeln('Time Running: ' +timeRunning);
-  writeLn('Breaks Taken: ' +intToStr(b));
+  writeLn('Breaks Taken: ' +intToStr(B));
 
   if (not bankScreen.isOpen) and (Tabbackpack.isEmpty) then  //If the Bankscreen is closed, and the backpack is empty, it Terminates
   begin
@@ -629,8 +901,6 @@ end;
 
 begin
   clearDebug();
-  LoadPortables();
-  loadBoxes();
   initPlayerForm();
   runPlayerForm();
   if (not playerForm.isScriptReady) then
@@ -642,15 +912,13 @@ begin
   disableSRLDebug := players[currentPlayer].booleans[0];
   setupSRL();
 
-  WhichPortable();
+  loadEverything();
   loginProcedure();
   mainscreen.setZoom(false);
   resetBreakTimer();
   writeLn('We are using ' + PortaType.Name + 's');
-
-  if (players[currentPlayer].strings[0] = 'Auto Detect') then
-    portableFind();
-
+  ScriptTimer.start();
+  whichDirection();
   repeat
     mouseSpeed := randomRange(28,35);
     portableMainLoop();
