@@ -16,16 +16,16 @@ program FadyAIOPortables;
 
 
 Const
-  Local_Version := 2.0;
+  Local_Version := 2.1;
 
 {* These constants contain information which you should edit if you
    wish to use a bank at an unsupported location. Default is Lumbridge Beach *}
 
 {*Custom Bank data*}
-  CustomBankCol := 5000830;
-  CustomBankTol := 5;
-  CustomBankHue := 0.14;
-  CustomBankSat := 0.26;
+  CustomBankCol := 4147053;
+  CustomBankTol := 11;
+  CustomBankHue := 0.27;
+  CustomBankSat := 0.28;
 
 {*These constants contain the information related to the portables
   Only modify these if the script stops working and you know what you're doing*}
@@ -573,7 +573,7 @@ var
 begin
   if not isLoggedIn() then
     exit;
-  if (Tabbackpack.count() < 1) then     //If the backpack doesnt have 20 or more items, the script terminates
+  if (Tabbackpack.count() < 2) then     //If the backpack doesnt have 20 or more items, the script terminates
   begin
     writeLn('Failed to withdraw enough items');
     terminateScript();
@@ -612,7 +612,7 @@ procedure brazierMake();        //Procedure to use the portable braziers
 var
   i,preCount,brazierTry: Integer;
 begin
-  if (not isLoggedIn()) or (Tabbackpack.count() < 1) then
+  if (not isLoggedIn()) or (Tabbackpack.count() < 2) then
     exit;
   preCount := tabBackPack.count();
   while (brazierTry < 10) and (not tabBackPack.waitForShift(gaussRangeInt(7600,8400))) do   //Will keep trying to click the brazier if no backpack shift is detected
@@ -640,7 +640,7 @@ var
   numToMill,confirmTry: integer;
   timer: TTimeMarker;
 begin
-  if (not isLoggedIn()) or (Tabbackpack.count() < 1) then
+  if (not isLoggedIn()) or (Tabbackpack.count() < 2) then
     exit;
   timer.start();
   case random(250) of             //Picks the number of logs to input
@@ -721,7 +721,7 @@ procedure portableMake();                //Navigates the production screen and w
 var
   portaTry, confirmTry: Integer;
 begin
-  if (not isLoggedIn()) or (Tabbackpack.count() < 1) then
+  if (not isLoggedIn()) or (Tabbackpack.count() < 2) then
     exit;
   if isArrInStr(['Clay/Fire','Clay/Form'], players[currentPlayer].strings[3]) then    //If making clay, navigates the conversation box that comes up
     clayNavigate();
@@ -790,6 +790,7 @@ begin
     terminateScript();
   end;
   sDebug('Successfully opened the bank!');
+  wait(gaussRangeInt(100,300));
   repeat                                                        //Tries to click the preset button again twice
     bankScreen.clickButton(getGlobal(players[currentPlayer].strings[2]));
     if tabBackpack.waitWhileLocked(gaussRangeInt(2000, 4000)) then
