@@ -16,7 +16,7 @@ program FadyAIOPortables;
 
 
 Const
-  Local_Version := 2.1;
+  Local_Version := 2.2;
 
 {* These constants contain information which you should edit if you
    wish to use a bank at an unsupported location. Default is Lumbridge Beach *}
@@ -91,10 +91,10 @@ Const
   FletcherWestBox := intToBox(144, 110, 187, 140);
 
 {*Portable Brazier data*}
-  BrazierCol := 1659559;
-  BrazierTol := 10;
+  BrazierCol := 1660329;
+  BrazierTol := 11;
   BrazierHue := 0.23;
-  BrazierSat := 2.10;
+  BrazierSat := 1.8;
   BrazierNorthBox := intToBox(282,102,310,125);
   BrazierSouthBox := intToBox(257,272,290,301);
   BrazierEastBox := intToBox(375,180,400,215);
@@ -298,7 +298,7 @@ begin                   //Finds the Portable and assigns the TPoint MPos to the 
     end;
 
   case r of                          // Assigns Search boxes and secondary click boxes depending on the mouse direction
-    0: sDebug('The' + PortaType.Name + 'is somewhere different');
+    0: sDebug('The ' + PortaType.Name + ' is somewhere different');
     1:
     begin
       PriBox := PBoxes[1];
@@ -578,13 +578,13 @@ begin
     writeLn('Failed to withdraw enough items');
     terminateScript();
   end;
-
   portableSpot();             //Moves the mouse to the pre-determined Portable location
-
-  if (players[currentPlayer].strings[4] = 'Primary') and (not PortaType.IsItHere(False)) and (not portableFind()) then
-    portablePlace();
+  if productionScreen.isOpen() then
+    exit;
   if not PortaType.IsItHere(True) then    //If Portable isnt found
   begin
+    if (players[currentPlayer].strings[4] = 'Primary') and (not PortaType.IsItHere(False)) and (not portableFind()) then
+      portablePlace();
     sDebug('Waiting for a ' +PortaType.Name);
     repeat
       wait(gaussRangeInt(1500, 2500));                                       //Waits till it is found in this spot, or it has tried 10 times (usually takes 15-30 seconds)
@@ -878,7 +878,14 @@ begin
   if not isLoggedIn() then
     loginProcedure();
   If not (players[currentPlayer].strings[3] = 'Ammo') then
+  begin
     CompactBanker();
+    if (not bankScreen.isOpen) and (Tabbackpack.isEmpty) then  //If the Bankscreen is closed, and the backpack is empty, it Terminates
+    begin
+      WriteLn('Failed to withdraw anything.');
+      TerminateScript;
+    end;
+  end;
   portableDirection();
 
   case players[currentPlayer].strings[3] of
@@ -892,12 +899,6 @@ begin
   writeLn('Processed/H: ' +intToStr(round(IngsDone/(ScriptTimer.getTime()/3600000))));
   writeln('Time Running: ' +timeRunning);
   writeLn('Breaks Taken: ' +intToStr(B));
-
-  if (not bankScreen.isOpen) and (Tabbackpack.isEmpty) then  //If the Bankscreen is closed, and the backpack is empty, it Terminates
-  begin
-    WriteLn('Failed to withdraw anything.');
-    TerminateScript;
-  end;
 end;
 
 begin
