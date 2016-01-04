@@ -16,7 +16,7 @@ program FadyAIOPortables;
 
 
 Const
-  Local_Version := 2.2;
+  Local_Version := 2.3;
 
 {* These constants contain information which you should edit if you
    wish to use a bank at an unsupported location. Default is Lumbridge Beach *}
@@ -654,7 +654,7 @@ begin
   end;
   wait(gaussRangeInt(200,600));
   mouseSpeed := randomRange(28,35);
-  bankscreen._enterAmount(numToMill, 2000);   //Using bankscreen._enterAmount because the tabs are similar. Wait time of 2 seconds
+  chatBox.enterAmount(numToMill, 2000);   //Wait time of 2 seconds
   wait(gaussRangeInt(500,900));
   if conversationbox.isOpen(3000) then
   begin
